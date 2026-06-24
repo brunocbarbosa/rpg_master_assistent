@@ -52,6 +52,15 @@ def test_empty_idea_shows_warning():
     assert "ideia" in at.warning[0].value.lower()
 
 
+def test_example_html_has_no_indented_lines():
+    # Regressão: linhas com 4+ espaços fariam o Streamlit renderizar o HTML como
+    # bloco de código em vez de HTML.
+    html = app._example_adventure_html("ideia", "Sombrio", "1–4", "One-shot")
+    for line in html.splitlines():
+        assert not line.startswith("    "), f"linha indentada: {line!r}"
+    assert 'class="rpg-card"' in html
+
+
 def test_valid_idea_renders_example_card():
     at = _run()
     at.text_area[0].set_value("Um vilarejo amaldiçoado sob a lua cheia.")

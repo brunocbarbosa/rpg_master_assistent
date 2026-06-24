@@ -60,7 +60,7 @@ def _example_adventure_html(idea: str, tom: str, nivel: str, duracao: str) -> st
     Demonstra o layout do resultado (Funil Narrativo + 3 atos) seguindo a forma
     de ``src/schemas/dnd5e.py``, sem chamar a IA.
     """
-    return f"""
+    html = f"""
     <div class="rpg-card">
         <h2>⚔️ A Sombra sobre o Vilarejo</h2>
         <div>
@@ -91,6 +91,9 @@ def _example_adventure_html(idea: str, tom: str, nivel: str, duracao: str) -> st
         próxima etapa.</p>
     </div>
     """
+    # Remove a indentação de cada linha: o markdown do Streamlit interpreta
+    # linhas com 4+ espaços como bloco de código, o que renderizaria o HTML cru.
+    return "\n".join(line.strip() for line in html.splitlines() if line.strip())
 
 
 def main() -> None:
