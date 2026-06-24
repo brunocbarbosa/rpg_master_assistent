@@ -19,6 +19,7 @@
 - [ ] Revisão visual do app (`streamlit run app.py`)
 
 ## Fechamento
-- [ ] `git push -u origin development`
-- [ ] Branch protection na `main` (PR obrigatório, 0 aprovações, enforce_admins)
-- [ ] Abrir PR `development → main`
+- [x] `git push -u origin development`
+- [ ] Branch protection na `main` (PR obrigatório) — **bloqueado**: repo privado
+      exige GitHub Pro ou repo público. Aguardando decisão do usuário.
+- [x] Abrir PR `development → main` (#1)
