@@ -6,9 +6,9 @@
 - [x] Criar `documents/CHECKLIST.md`
 
 ## Parte A — Frontend
-- [ ] `.streamlit/config.toml` (tema base dark)
-- [ ] `static/style.css` (tema dark fantasy customizado)
-- [ ] `app.py` reescrito (load_css, constantes, hero, formulário, card de exemplo)
+- [x] `.streamlit/config.toml` (tema base dark)
+- [x] `static/style.css` (tema dark fantasy customizado)
+- [x] `app.py` reescrito (load_css, constantes, hero, formulário, card de exemplo)
 
 ## Parte B — Testes automatizados
 - [ ] `requirements-dev.txt` (pytest)
