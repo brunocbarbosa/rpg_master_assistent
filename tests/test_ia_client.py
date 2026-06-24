@@ -6,6 +6,7 @@ O SDK do Gemini é totalmente mockado — nenhum teste acessa a rede.
 from __future__ import annotations
 
 import pytest
+from google.genai import errors as genai_errors
 
 import src.ia_client as ia_client
 from src.config import Settings
@@ -113,3 +114,55 @@ def test_invalid_response_becomes_ia_client_error(monkeypatch):
 
     with pytest.raises(IAClientError):
         client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
+
+
+def _server_error() -> genai_errors.ServerError:
+    return genai_errors.ServerError(503, {"error": {"status": "UNAVAILABLE"}})
+
+
+class _SequencedModels:
+    """Devolve, a cada chamada, o próximo item de uma sequência (raise se Exception)."""
+
+    def __init__(self, sequence):
+        self._sequence = list(sequence)
+        self.calls = 0
+
+    def generate_content(self, **_):
+        item = self._sequence[self.calls]
+        self.calls += 1
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+
+def _patch_sequenced(monkeypatch, sequence):
+    models = _SequencedModels(sequence)
+    client = type("C", (), {"models": models})()
+    monkeypatch.setattr(ia_client.genai, "Client", lambda **_: client)
+    monkeypatch.setattr(ia_client.time, "sleep", lambda *_: None)  # sem espera real
+    return models
+
+
+def test_retries_then_succeeds_on_transient_error(monkeypatch):
+    models = _patch_sequenced(
+        monkeypatch,
+        [_server_error(), _FakeResponse(parsed=_fake_adventure())],
+    )
+    client = _make_client()
+
+    result = client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
+
+    assert result["title"] == "O Sino de Pedraluz"
+    assert models.calls == 2  # falhou 1x, sucesso na 2ª
+
+
+def test_persistent_transient_error_raises_overload_message(monkeypatch):
+    models = _patch_sequenced(
+        monkeypatch,
+        [_server_error(), _server_error(), _server_error()],
+    )
+    client = _make_client()
+
+    with pytest.raises(IAClientError, match="sobrecarregado"):
+        client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
+    assert models.calls == 3  # esgotou as tentativas

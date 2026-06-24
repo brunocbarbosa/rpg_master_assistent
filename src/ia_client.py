@@ -8,12 +8,19 @@ interface pública definida aqui.
 
 from __future__ import annotations
 
+import time
+
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from src.config import Settings
 from src.prompts import ADVENTURE_PROMPT_TEMPLATE, SYSTEM_PROMPT
 from src.schemas.dnd5e import Adventure
+
+# Tentativas extras quando a API responde com erro transitório (5xx / sobrecarga).
+_MAX_ATTEMPTS = 3
+_BACKOFF_SECONDS = 2.0
 
 
 class IAClientError(RuntimeError):
@@ -48,23 +55,13 @@ class IAClient:
         prompt = ADVENTURE_PROMPT_TEMPLATE.format(
             idea=idea, tom=tom, nivel=nivel, duracao=duracao
         )
+        config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            response_mime_type="application/json",
+            response_schema=Adventure,
+        )
 
-        try:
-            response = self._client.models.generate_content(
-                model=self._settings.gemini_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    response_mime_type="application/json",
-                    response_schema=Adventure,
-                ),
-            )
-        except Exception as exc:  # noqa: BLE001 — encapsula qualquer erro do SDK
-            raise IAClientError(
-                "Não foi possível gerar a aventura. Verifique sua conexão e a "
-                "chave da API, e tente novamente."
-            ) from exc
-
+        response = self._generate_with_retry(prompt, config)
         adventure = response.parsed
         if adventure is None:
             # Fallback: alguns retornos trazem só o texto JSON.
@@ -76,3 +73,32 @@ class IAClient:
                 ) from exc
 
         return adventure.model_dump()
+
+    def _generate_with_retry(self, prompt: str, config: types.GenerateContentConfig):
+        """Chama a API com retry/backoff para erros transitórios (5xx/sobrecarga).
+
+        Erros de cliente (4xx, ex.: chave inválida) não são repetidos.
+        """
+        last_exc: Exception | None = None
+        for attempt in range(_MAX_ATTEMPTS):
+            try:
+                return self._client.models.generate_content(
+                    model=self._settings.gemini_model,
+                    contents=prompt,
+                    config=config,
+                )
+            except genai_errors.ServerError as exc:
+                # Transitório (ex.: 503 UNAVAILABLE): aguarda e tenta de novo.
+                last_exc = exc
+                if attempt < _MAX_ATTEMPTS - 1:
+                    time.sleep(_BACKOFF_SECONDS * (attempt + 1))
+            except Exception as exc:  # noqa: BLE001 — qualquer outro erro do SDK
+                raise IAClientError(
+                    "Não foi possível gerar a aventura. Verifique sua conexão e a "
+                    "chave da API, e tente novamente."
+                ) from exc
+
+        raise IAClientError(
+            "O serviço de IA está temporariamente sobrecarregado. "
+            "Tente novamente em alguns instantes."
+        ) from last_exc
