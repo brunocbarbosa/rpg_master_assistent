@@ -27,3 +27,6 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Claude Code (config/skills locais)
+.claude/
