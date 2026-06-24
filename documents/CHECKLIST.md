@@ -11,9 +11,9 @@
 - [x] `app.py` reescrito (load_css, constantes, hero, formulário, card de exemplo)
 
 ## Parte B — Testes automatizados
-- [ ] `requirements-dev.txt` (pytest)
-- [ ] `tests/__init__.py` + `tests/test_app.py`
-- [ ] `pytest -q` passando
+- [x] `requirements-dev.txt` (pytest)
+- [x] `tests/__init__.py` + `tests/test_app.py`
+- [x] `pytest -q` passando (5 testes)
 
 ## Verificação
 - [ ] Revisão visual do app (`streamlit run app.py`)
