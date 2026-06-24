@@ -1,7 +1,7 @@
 """Testes da página principal (app.py).
 
 Usa o framework oficial ``streamlit.testing.v1.AppTest`` para executar a app de
-forma headless. A chamada ao Gemini é sempre mockada — nenhum teste acessa a rede.
+forma headless. A chamada ao Ollama é sempre mockada — nenhum teste acessa a rede.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ def test_card_html_has_no_indented_lines():
 
 
 def test_valid_idea_renders_generated_card(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_MODEL", "mistral")
     with patch.object(
         app.IAClient, "generate_adventure", return_value=FAKE_ADVENTURE
     ):
@@ -106,7 +106,7 @@ def test_valid_idea_renders_generated_card(monkeypatch):
 def test_error_clears_previous_adventure(monkeypatch):
     from src.ia_client import IAClientError
 
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_MODEL", "mistral")
     at = AppTest.from_file(APP_PATH)
     at.session_state["adventure"] = FAKE_ADVENTURE
     at.session_state["params"] = ("Sombrio", "1–4", "One-shot")
@@ -124,11 +124,11 @@ def test_error_clears_previous_adventure(monkeypatch):
 def test_config_error_shows_friendly_message(monkeypatch):
     from src.config import ConfigError
 
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_MODEL", "mistral")
     with patch.object(
         app.IAClient,
         "generate_adventure",
-        side_effect=ConfigError("Chave ausente."),
+        side_effect=ConfigError("Falha de configuração."),
     ):
         at = AppTest.from_file(APP_PATH)
         at.run()
@@ -137,4 +137,4 @@ def test_config_error_shows_friendly_message(monkeypatch):
 
     assert not at.exception
     assert len(at.error) == 1
-    assert "Chave ausente." in at.error[0].value
+    assert "Falha de configuração." in at.error[0].value

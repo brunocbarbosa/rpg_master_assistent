@@ -2,8 +2,8 @@
 
 Página principal do gerador de aventuras de D&D 5e (MVP / Fase 1). A interface
 coleta a ideia central do mestre e alguns ajustes (tom, nível, duração), chama o
-modelo Gemini (via src/ia_client.py) e exibe a aventura gerada seguindo o Funil
-Narrativo + estrutura de 3 atos.
+modelo Mistral via Ollama (via src/ia_client.py) e exibe a aventura gerada
+seguindo o Funil Narrativo + estrutura de 3 atos.
 
 Para executar:
     streamlit run app.py

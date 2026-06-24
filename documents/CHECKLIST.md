@@ -1,21 +1,31 @@
-# Checklist — Botão "Baixar em PDF" da aventura
+# Checklist — Troca do provedor de IA: Gemini → Mistral (Ollama local)
 
 ## Implementação
-- [x] `requirements.txt` — `fpdf2`
-- [x] `static/fonts/` — DejaVuSans regular + bold empacotadas
-- [x] `src/pdf.py` — `build_adventure_pdf` + `pdf_filename` (tema dark fantasy)
-- [x] `app.py` — persistência em `session_state` + `st.download_button`
+- [x] `requirements.txt` — remove `google-genai`, adiciona `ollama`
+- [x] `src/config.py` — `Settings(ollama_host, ollama_model)` + auto-detecção WSL
+- [x] `src/ia_client.py` — `ollama.Client().chat(..., format=schema)` + retry adaptado
+- [x] `.env.example` — `OLLAMA_HOST` / `OLLAMA_MODEL=mistral`
+- [x] Docstrings (`app.py`, `src/schemas/dnd5e.py`) + `CLAUDE.md` + `README.md`
+
+## Correções pós-teste (depuração do "não foi possível gerar")
+- [x] Tratamento de erro de transporte ampliado (`httpx.RequestError`/`InvalidURL`/
+      `ollama.RequestError`) → URL malformada dá msg clara, não a genérica
+- [x] Auto-detecção do host corrigida: usa o **gateway padrão** (`/proc/net/route`),
+      não o nameserver do resolv.conf
+- [x] `timeout` no `ollama.Client` (connect=5s, read=600s) → falha rápido se o
+      Ollama estiver inacessível, em vez de travar o app
+- [x] `.env` — typo `hhttp://` corrigido; `OLLAMA_HOST` comentado (usa auto-detecção)
 
 ## Testes (sem rede)
-- [x] `tests/test_pdf.py`
-- [x] `tests/test_app.py` atualizado (session_state, persistência, erro)
+- [x] `tests/test_ia_client.py` reescrito para o Ollama
+- [x] `tests/test_config.py` reescrito (host/modelo via env, defaults)
+- [x] `tests/test_app.py` atualizado (`OLLAMA_MODEL`)
 - [x] `pytest -q` passando (23 testes)
 
 ## Verificação
-- [x] PDF renderizado (tema escuro, dourado/roxo, acentos e travessões ok)
-- [x] Botão "Baixar em PDF" aparece abaixo do card (validado no app)
-- [ ] Geração ponta a ponta no app real bloqueada por pico de demanda do Gemini
-      (503) no momento; o caminho do botão foi validado via preview sem IA
+- [ ] `ollama pull mistral` no host Windows + `curl http://<host>:11434/api/tags` ok
+- [ ] Geração ponta a ponta no app real (card estruturado em pt-BR)
+- [ ] Ollama desligado → mensagem clara de erro (sem stack trace)
 
 ## Git
 - [ ] Commit / push / PR — **somente quando o usuário pedir**

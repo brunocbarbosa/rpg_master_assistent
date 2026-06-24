@@ -1,4 +1,4 @@
-"""Cliente de IA — integração com a API do Google Gemini.
+"""Cliente de IA — integração com o Mistral via Ollama (local).
 
 Responsável por enviar prompts ao modelo e devolver as aventuras geradas já
 estruturadas (dicionários prontos para virar JSON). Esta é a única camada que
@@ -10,29 +10,45 @@ from __future__ import annotations
 
 import time
 
-from google import genai
-from google.genai import errors as genai_errors
-from google.genai import types
+import httpx
+import ollama
 
 from src.config import Settings
 from src.prompts import ADVENTURE_PROMPT_TEMPLATE, SYSTEM_PROMPT
 from src.schemas.dnd5e import Adventure
 
-# Tentativas extras quando a API responde com erro transitório (5xx / sobrecarga).
+# Tentativas extras quando o servidor responde com erro transitório
+# (5xx / modelo ainda carregando).
 _MAX_ATTEMPTS = 3
 _BACKOFF_SECONDS = 2.0
 
+# Timeouts (segundos): conexão curta para falhar rápido se o Ollama estiver
+# inacessível; leitura longa porque a geração do LLM pode demorar (CPU/modelo
+# grande). Sem isso, um host inacessível trava o app indefinidamente.
+_TIMEOUT = httpx.Timeout(connect=5.0, read=600.0, write=10.0, pool=5.0)
+
+# Erros de transporte: servidor inacessível (desligado, host/porta errados, sem
+# rota, timeout) ou URL malformada (ex.: esquema inválido no OLLAMA_HOST).
+# Não adianta repetir — falha imediata com orientação. ``httpx.RequestError``
+# cobre ConnectError/ConnectTimeout/ReadTimeout/UnsupportedProtocol etc.
+_CONNECTION_ERRORS = (
+    ConnectionError,
+    httpx.RequestError,
+    httpx.InvalidURL,
+    ollama.RequestError,
+)
+
 
 class IAClientError(RuntimeError):
-    """Falha ao gerar a aventura (erro de rede, da API ou de parse da resposta)."""
+    """Falha ao gerar a aventura (erro de rede, do servidor ou de parse da resposta)."""
 
 
 class IAClient:
-    """Encapsula a comunicação com o modelo Gemini."""
+    """Encapsula a comunicação com o modelo Mistral servido pelo Ollama."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._client = genai.Client(api_key=settings.gemini_api_key)
+        self._client = ollama.Client(host=settings.ollama_host, timeout=_TIMEOUT)
 
     def generate_adventure(
         self, idea: str, tom: str, nivel: str, duracao: str
@@ -50,52 +66,64 @@ class IAClient:
             (ver ``src/schemas/dnd5e.py``).
 
         Raises:
-            IAClientError: se a chamada à API ou o parse da resposta falhar.
+            IAClientError: se a chamada ao Ollama ou o parse da resposta falhar.
         """
         prompt = ADVENTURE_PROMPT_TEMPLATE.format(
             idea=idea, tom=tom, nivel=nivel, duracao=duracao
         )
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            response_mime_type="application/json",
-            response_schema=Adventure,
-        )
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
 
-        response = self._generate_with_retry(prompt, config)
-        adventure = response.parsed
-        if adventure is None:
-            # Fallback: alguns retornos trazem só o texto JSON.
-            try:
-                adventure = Adventure.model_validate_json(response.text or "")
-            except Exception as exc:  # noqa: BLE001
-                raise IAClientError(
-                    "A resposta da IA veio em um formato inesperado. Tente novamente."
-                ) from exc
+        response = self._chat_with_retry(messages)
+
+        content = response.message.content or ""
+        try:
+            adventure = Adventure.model_validate_json(content)
+        except Exception as exc:  # noqa: BLE001
+            raise IAClientError(
+                "A resposta da IA veio em um formato inesperado. Tente novamente."
+            ) from exc
 
         return adventure.model_dump()
 
-    def _generate_with_retry(self, prompt: str, config: types.GenerateContentConfig):
-        """Chama a API com retry/backoff para erros transitórios (5xx/sobrecarga).
+    def _chat_with_retry(self, messages: list[dict]):
+        """Chama o Ollama com retry/backoff para erros transitórios (5xx/sobrecarga).
 
-        Erros de cliente (4xx, ex.: chave inválida) não são repetidos.
+        Erros de conexão (servidor desligado / host errado) falham de imediato.
         """
         last_exc: Exception | None = None
         for attempt in range(_MAX_ATTEMPTS):
             try:
-                return self._client.models.generate_content(
-                    model=self._settings.gemini_model,
-                    contents=prompt,
-                    config=config,
+                return self._client.chat(
+                    model=self._settings.ollama_model,
+                    messages=messages,
+                    format=Adventure.model_json_schema(),
                 )
-            except genai_errors.ServerError as exc:
-                # Transitório (ex.: 503 UNAVAILABLE): aguarda e tenta de novo.
-                last_exc = exc
-                if attempt < _MAX_ATTEMPTS - 1:
-                    time.sleep(_BACKOFF_SECONDS * (attempt + 1))
+            except ollama.ResponseError as exc:
+                status = getattr(exc, "status_code", None)
+                # Transitório (5xx, ex.: modelo carregando): aguarda e tenta de novo.
+                if status is not None and status >= 500:
+                    last_exc = exc
+                    if attempt < _MAX_ATTEMPTS - 1:
+                        time.sleep(_BACKOFF_SECONDS * (attempt + 1))
+                    continue
+                # Erros de cliente (4xx, ex.: modelo inexistente) não são repetidos.
+                raise IAClientError(
+                    "Não foi possível gerar a aventura. Verifique se o modelo "
+                    f"'{self._settings.ollama_model}' está instalado no Ollama "
+                    "(ollama pull) e tente novamente."
+                ) from exc
+            except _CONNECTION_ERRORS as exc:
+                raise IAClientError(
+                    "Não foi possível conectar ao Ollama. Verifique se ele está "
+                    f"rodando e se OLLAMA_HOST ('{self._settings.ollama_host}') "
+                    "aponta para o servidor correto."
+                ) from exc
             except Exception as exc:  # noqa: BLE001 — qualquer outro erro do SDK
                 raise IAClientError(
-                    "Não foi possível gerar a aventura. Verifique sua conexão e a "
-                    "chave da API, e tente novamente."
+                    "Não foi possível gerar a aventura. Tente novamente."
                 ) from exc
 
         raise IAClientError(

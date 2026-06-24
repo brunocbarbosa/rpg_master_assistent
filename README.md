@@ -14,14 +14,14 @@ deixando o mestre livre para improvisar e conduzir o jogo.
 
 - **Python** 3.10+
 - **Streamlit** — interface web
-- **Google Gemini** (`google-genai`) — motor de IA
-- **python-dotenv** — variáveis de ambiente / segredos
+- **Mistral via Ollama** (`ollama`) — motor de IA, rodando localmente
+- **python-dotenv** — variáveis de ambiente
 
 ## Pré-requisitos
 
 - Python 3.10 ou superior
-- Uma chave de API do Google Gemini — obtenha em
-  [Google AI Studio](https://aistudio.google.com/app/apikey)
+- [Ollama](https://ollama.com) instalado e com o modelo Mistral baixado:
+  `ollama pull mistral` (não requer chave de API)
 
 ## Setup
 
@@ -35,7 +35,9 @@ pip install -r requirements.txt
 
 # 3. Configurar as variáveis de ambiente
 cp .env.example .env
-# edite o .env e preencha GEMINI_API_KEY
+# ajuste OLLAMA_HOST/OLLAMA_MODEL se necessário (no WSL com Ollama no host
+# Windows, aponte OLLAMA_HOST para o IP do host; caso contrário o app tenta
+# detectar automaticamente)
 ```
 
 ## Como rodar
@@ -56,7 +58,7 @@ streamlit run app.py
 ├── .env.example          # Template das variáveis de ambiente
 └── src/
     ├── config.py         # Carregamento de configuração (.env)
-    ├── ia_client.py      # Cliente da API Gemini
+    ├── ia_client.py      # Cliente do Ollama (Mistral local)
     ├── prompts.py        # System Prompts e templates narrativos
     └── schemas/
         └── dnd5e.py      # Estruturas de dados (JSON) para D&D 5e

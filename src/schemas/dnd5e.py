@@ -1,9 +1,9 @@
 """Estruturas de dados (schema) para saídas de Dungeons & Dragons 5e.
 
-Define o formato estruturado que o modelo Gemini deve seguir ao gerar uma
+Define o formato estruturado que o modelo de IA deve seguir ao gerar uma
 aventura, garantindo um processamento consistente da resposta (Funil Narrativo
-+ 3 atos). Os modelos Pydantic abaixo são passados diretamente como
-``response_schema`` para a API (ver ``src/ia_client.py``).
++ 3 atos). O JSON Schema destes modelos Pydantic é passado como ``format`` na
+chamada ao Ollama (ver ``src/ia_client.py``).
 
 Os nomes dos campos ficam em inglês (estáveis para o schema); os textos gerados
 e as descrições que guiam o modelo ficam em pt-BR.
