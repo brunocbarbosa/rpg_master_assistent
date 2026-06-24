@@ -1,68 +1,41 @@
-# Plano — Página principal (frontend) + fluxo Git + testes
+# Plano — Integração com o Gemini (geração real de aventuras)
 
 ## Contexto
 
-O projeto é um esqueleto Streamlit (MVP D&D 5e). Hoje `app.py` mostrava apenas um
-`text_area` cru + botão, com a aparência genérica padrão do Streamlit, e a geração
-via IA ainda não está implementada. Esta etapa entrega três coisas:
+A etapa anterior entregou o frontend (página dark fantasy + testes), mas a
+geração via IA era um **mock**. Esta etapa torna a geração **real**: ao submeter
+o formulário, o app chama o **Google Gemini** e exibe uma aventura única (Funil
+Narrativo + 3 atos) estruturada via JSON Schema (modelos Pydantic).
 
-1. **Página principal — só a UI, bonita e temática** — onde o mestre informa a
-   ideia da aventura. A integração com a IA (Gemini) fica para depois; aqui o
-   botão "Gerar Aventura" demonstra o fluxo com um resultado de exemplo (mock).
-2. **Fluxo de Git:** branch `development` a partir da `main`, e a `main` protegida
-   para só receber atualizações via Pull Request.
-3. **Testes automatizados** da página (primeira suíte de testes do projeto).
+## Parte A — Backend (camada de IA)
+- `src/schemas/dnd5e.py` — modelos Pydantic (`Adventure`, `NarrativeFunnel`,
+  `Antagonist`, `Location`, `NPC`, `ThreeActStructure`) usados como
+  `response_schema`.
+- `src/prompts.py` — `SYSTEM_PROMPT` (persona mestre D&D 5e, pt-BR) e
+  `ADVENTURE_PROMPT_TEMPLATE` com `{idea}/{tom}/{nivel}/{duracao}`.
+- `src/config.py` — `load_settings()` levanta `ConfigError` sem a chave; modelo
+  padrão `gemini-2.5-flash`.
+- `src/ia_client.py` — `IAClient.generate_adventure(idea, tom, nivel, duracao)`
+  chama o Gemini com saída JSON estruturada; erros viram `IAClientError`.
 
-Decisões validadas com o usuário:
-- **Stack:** Streamlit + CSS customizado (mantém o stack do CLAUDE.md).
-- **Campos do formulário:** ideia central + tom + nível dos personagens + duração.
-- **Estilo visual:** *dark fantasy* — fundo escuro, acentos dourado/âmbar e roxo,
-  títulos com tipografia medieval (Cinzel).
-- **Proteção da `main`:** branch protection exigindo PR, com 0 aprovações (projeto
-  solo), `enforce_admins: true`. O GitHub não restringe de qual branch o PR vem;
-  "a partir da `development`" é convenção do fluxo.
+## Parte B — Frontend (`app.py`)
+- `get_client()` em `@st.cache_resource`.
+- `_adventure_card_html(...)` renderiza o dict real (título, Gancho, Antagonista
+  + Doom Clock, Locais-chave, NPCs, 3 atos), com escape de HTML.
+- Submit: `st.spinner` durante a geração; `ConfigError`/`IAClientError` → `st.error`.
 
-## Parte A — Frontend
+## Parte C — Testes (sem rede)
+- `tests/test_ia_client.py`, `tests/test_config.py`, `tests/test_prompts.py` e
+  `tests/test_app.py` (atualizado). Gemini sempre mockado.
 
-1. **`.streamlit/config.toml`** — tema base dark do Streamlit (cores
-   primária/fundo/superfície/texto) coerente com o dark fantasy.
-2. **`static/style.css`** — CSS customizado: fontes Cinzel (títulos) + EB Garamond
-   (corpo), hero dourado com brilho, botão com gradiente dourado e hover, inputs e
-   selects com bordas âmbar, card de resultado, esconder menu/rodapé do Streamlit.
-3. **`app.py`** (reescrito) — `load_css()`, constantes de formulário
-   (`TONS`, `NIVEIS`, `DURACOES`), hero, formulário (`st.form`) com ideia + 3
-   selects + botão, e ao submeter: aviso se vazio, ou card de aventura de exemplo
-   (mock) seguindo a forma de `src/schemas/dnd5e.py`.
-
-## Parte B — Testes automatizados
-
-`streamlit.testing.v1.AppTest` + `pytest`.
-
-- `requirements-dev.txt` — `pytest`.
-- `tests/__init__.py` (vazio) e `tests/test_app.py`:
-  - `test_form_options_nonempty`
-  - `test_load_css`
-  - `test_page_renders`
-  - `test_empty_idea_shows_warning`
-  - `test_valid_idea_renders_result`
-
-## Parte C — Fluxo de Git
-
-1. Criar branch `development` a partir da `main`.
-2. Criar `documents/PLANO.md` e `documents/CHECKLIST.md`.
-3. Implementar Partes A e B; commits em pt-BR (`feat:`/`chore:`/`test:`),
-   atualizando a CHECKLIST a cada tarefa.
-4. `git push -u origin development`.
-5. Branch protection na `main` via `gh api` (PR obrigatório, 0 aprovações,
-   `enforce_admins: true`).
-6. Abrir PR `development → main`.
+## Parte D — Docs e Git
+- Substituir `documents/PLANO.md` e `documents/CHECKLIST.md`.
+- Continuar na `development`; tudo no mesmo **PR #1**.
 
 ## Fora de escopo
-- Nenhuma chamada real à Gemini / `IAClient`.
-- Sem alterações em `src/ia_client.py`, `src/prompts.py`, `src/config.py`,
-  `src/schemas/dnd5e.py`.
+- Multi-sistema / Cyberpunk RED (Fase 2). Só D&D 5e.
 
 ## Verificação
-1. `pip install -r requirements-dev.txt` e `pytest -q` → verde.
-2. `streamlit run app.py` → tema aplicado, formulário e card de exemplo funcionando.
-3. `git branch` (development ativa), branch protection ativa, PR aberto.
+1. `pytest -q` → verde (sem rede).
+2. `streamlit run app.py` com chave real → aventura gerada pelo Gemini no card.
+3. Sem `GEMINI_API_KEY` → `st.error` claro em vez de quebrar.

@@ -1,12 +1,9 @@
 """RPG Master Assistant — aplicação Streamlit (entrypoint).
 
 Página principal do gerador de aventuras de D&D 5e (MVP / Fase 1). A interface
-coleta a ideia central do mestre e alguns ajustes (tom, nível, duração) e exibe
-o resultado seguindo o Funil Narrativo + estrutura de 3 atos.
-
-NOTA: a geração via IA ainda NÃO está implementada. Ao submeter, a página exibe
-uma **aventura de exemplo (mock)** para demonstrar o layout do resultado; a
-chamada real ao modelo Gemini (src/ia_client.py) entra em uma etapa posterior.
+coleta a ideia central do mestre e alguns ajustes (tom, nível, duração), chama o
+modelo Gemini (via src/ia_client.py) e exibe a aventura gerada seguindo o Funil
+Narrativo + estrutura de 3 atos.
 
 Para executar:
     streamlit run app.py
@@ -14,14 +11,18 @@ Para executar:
 
 from __future__ import annotations
 
+import html as html_lib
 from pathlib import Path
 
 import streamlit as st
 
+from src.config import ConfigError, load_settings
+from src.ia_client import IAClient, IAClientError
+
 BASE_DIR = Path(__file__).resolve().parent
 CSS_PATH = BASE_DIR / "static" / "style.css"
 
-# Opções do formulário — centralizadas aqui para reuso futuro pelo prompt da IA.
+# Opções do formulário — centralizadas aqui e reutilizadas no prompt da IA.
 TONS = ["Sombrio", "Heroico", "Misterioso", "Épico", "Cômico"]
 NIVEIS = ["1–4", "5–10", "11–16", "17–20"]
 DURACOES = [
@@ -40,6 +41,12 @@ def load_css(path: Path) -> None:
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
+@st.cache_resource(show_spinner=False)
+def get_client() -> IAClient:
+    """Instancia o ``IAClient`` uma única vez (cache entre reruns do Streamlit)."""
+    return IAClient(load_settings())
+
+
 def _render_hero() -> None:
     """Renderiza o cabeçalho (hero) com título e subtítulo."""
     st.markdown(
@@ -54,41 +61,59 @@ def _render_hero() -> None:
     )
 
 
-def _example_adventure_html(idea: str, tom: str, nivel: str, duracao: str) -> str:
-    """Monta o HTML de uma aventura de EXEMPLO (mock) com base nos campos.
+def _esc(value: str) -> str:
+    """Escapa texto vindo da IA para inserção segura no HTML do card."""
+    return html_lib.escape(str(value))
 
-    Demonstra o layout do resultado (Funil Narrativo + 3 atos) seguindo a forma
-    de ``src/schemas/dnd5e.py``, sem chamar a IA.
+
+def _adventure_card_html(
+    adventure: dict, tom: str, nivel: str, duracao: str
+) -> str:
+    """Monta o HTML do card a partir do dict estruturado da aventura.
+
+    Segue a forma de ``src/schemas/dnd5e.py`` (Funil Narrativo + 3 atos).
     """
+    funnel = adventure.get("narrative_funnel", {})
+    antagonist = funnel.get("antagonist", {})
+    acts = adventure.get("three_act_structure", {})
+
+    locations = "".join(
+        f"<li><strong>{_esc(loc.get('name', ''))}:</strong> "
+        f"{_esc(loc.get('description', ''))}</li>"
+        for loc in funnel.get("key_locations", [])
+    )
+    npcs = "".join(
+        f"<li><strong>{_esc(npc.get('name', ''))}:</strong> "
+        f"{_esc(npc.get('description', ''))}</li>"
+        for npc in funnel.get("key_npcs", [])
+    )
+
     html = f"""
     <div class="rpg-card">
-        <h2>⚔️ A Sombra sobre o Vilarejo</h2>
+        <h2>⚔️ {_esc(adventure.get('title', 'Aventura'))}</h2>
         <div>
-            <span class="rpg-tag">Tom: {tom}</span>
-            <span class="rpg-tag">Nível: {nivel}</span>
-            <span class="rpg-tag">Duração: {duracao}</span>
+            <span class="rpg-tag">Tom: {_esc(tom)}</span>
+            <span class="rpg-tag">Nível: {_esc(nivel)}</span>
+            <span class="rpg-tag">Duração: {_esc(duracao)}</span>
         </div>
 
         <h3>🪝 Gancho</h3>
-        <p>{idea}</p>
+        <p>{_esc(funnel.get('plot_hook', ''))}</p>
 
         <h3>👁️ Antagonista &amp; Ameaça</h3>
-        <p>Um culto esquecido invoca uma entidade que se alimenta de memórias.
-        <span class="rpg-doom">Doom Clock:</span> a cada lua cheia, mais um
-        habitante desaparece sem deixar rastro — em três luas, o vilarejo inteiro
-        terá sido esquecido pelo mundo.</p>
+        <p>{_esc(antagonist.get('description', ''))}</p>
+        <p><span class="rpg-doom">Doom Clock:</span> {_esc(antagonist.get('doom_clock', ''))}</p>
+
+        <h3>🗺️ Locais-chave</h3>
+        <ul>{locations}</ul>
+
+        <h3>🎭 NPCs</h3>
+        <ul>{npcs}</ul>
 
         <h3>📜 Estrutura em 3 Atos</h3>
-        <p><strong>Ato 1 — O Chamado:</strong> os heróis chegam ao vilarejo e
-        descobrem os desaparecimentos e o medo que paralisa os moradores.</p>
-        <p><strong>Ato 2 — O Desenvolvimento:</strong> investigação das ruínas,
-        pistas do culto e confrontos com servos da entidade.</p>
-        <p><strong>Ato 3 — O Clímax:</strong> confronto final no santuário antes
-        que a última lua cheia complete o ritual.</p>
-
-        <p style="margin-top:1rem;color:#a89c8a;font-style:italic;">
-        ✨ Exemplo ilustrativo — a geração real via IA (Gemini) será adicionada na
-        próxima etapa.</p>
+        <p><strong>Ato 1 — O Chamado:</strong> {_esc(acts.get('act_1_the_call', ''))}</p>
+        <p><strong>Ato 2 — O Desenvolvimento:</strong> {_esc(acts.get('act_2_the_development', ''))}</p>
+        <p><strong>Ato 3 — O Clímax:</strong> {_esc(acts.get('act_3_the_climax', ''))}</p>
     </div>
     """
     # Remove a indentação de cada linha: o markdown do Streamlit interpreta
@@ -124,16 +149,28 @@ def main() -> None:
 
         submitted = st.form_submit_button("⚔️ Gerar Aventura", type="primary")
 
-    if submitted:
-        if not idea.strip():
-            st.warning("Descreva uma ideia central antes de gerar a aventura.")
-        else:
-            # TODO (Fase 1 funcional): substituir o exemplo abaixo pela chamada a
-            # src.ia_client.IAClient.generate_adventure(idea, tom, nivel, duracao).
-            st.markdown(
-                _example_adventure_html(idea.strip(), tom, nivel, duracao),
-                unsafe_allow_html=True,
-            )
+    if not submitted:
+        return
+
+    if not idea.strip():
+        st.warning("Descreva uma ideia central antes de gerar a aventura.")
+        return
+
+    try:
+        client = get_client()
+        with st.spinner("Convocando o oráculo... a aventura está sendo forjada."):
+            adventure = client.generate_adventure(idea.strip(), tom, nivel, duracao)
+    except ConfigError as exc:
+        st.error(str(exc))
+        return
+    except IAClientError as exc:
+        st.error(str(exc))
+        return
+
+    st.markdown(
+        _adventure_card_html(adventure, tom, nivel, duracao),
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":

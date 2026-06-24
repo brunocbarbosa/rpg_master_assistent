@@ -1,18 +1,38 @@
 """Testes da página principal (app.py).
 
-Usa o framework oficial ``streamlit.testing.v1.AppTest`` para executar a app
-de forma headless e inspecionar os elementos renderizados.
+Usa o framework oficial ``streamlit.testing.v1.AppTest`` para executar a app de
+forma headless. A chamada ao Gemini é sempre mockada — nenhum teste acessa a rede.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
 
 import app
 
 APP_PATH = str(Path(app.__file__).resolve())
+
+# Aventura fixa usada como retorno mockado do IAClient.
+FAKE_ADVENTURE = {
+    "title": "O Sino de Pedraluz",
+    "narrative_funnel": {
+        "plot_hook": "Um sino tocou sozinho à meia-noite.",
+        "antagonist": {
+            "description": "Um lich entediado.",
+            "doom_clock": "A cada badalada, um morto se ergue.",
+        },
+        "key_locations": [{"name": "A Torre", "description": "Onde o sino dorme."}],
+        "key_npcs": [{"name": "Mestra Vael", "description": "A sineira cega."}],
+    },
+    "three_act_structure": {
+        "act_1_the_call": "Os heróis ouvem o sino.",
+        "act_2_the_development": "Investigam a torre.",
+        "act_3_the_climax": "Silenciam o sino para sempre.",
+    },
+}
 
 
 def _run():
@@ -37,10 +57,8 @@ def test_load_css_file_exists_and_has_style():
 def test_page_renders_without_exception():
     at = _run()
     assert not at.exception
-    # Título presente em algum bloco markdown do hero.
     markdown_text = " ".join(md.value for md in at.markdown)
     assert "RPG Master Assistant" in markdown_text
-    # Formulário: 1 text_area + 3 selectbox.
     assert len(at.text_area) == 1
     assert len(at.selectbox) == 3
 
@@ -52,22 +70,47 @@ def test_empty_idea_shows_warning():
     assert "ideia" in at.warning[0].value.lower()
 
 
-def test_example_html_has_no_indented_lines():
+def test_card_html_has_no_indented_lines():
     # Regressão: linhas com 4+ espaços fariam o Streamlit renderizar o HTML como
     # bloco de código em vez de HTML.
-    html = app._example_adventure_html("ideia", "Sombrio", "1–4", "One-shot")
+    html = app._adventure_card_html(FAKE_ADVENTURE, "Sombrio", "1–4", "One-shot")
     for line in html.splitlines():
         assert not line.startswith("    "), f"linha indentada: {line!r}"
     assert 'class="rpg-card"' in html
+    assert "O Sino de Pedraluz" in html
 
 
-def test_valid_idea_renders_example_card():
-    at = _run()
-    at.text_area[0].set_value("Um vilarejo amaldiçoado sob a lua cheia.")
-    at.button[0].click().run()
+def test_valid_idea_renders_generated_card(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    with patch.object(
+        app.IAClient, "generate_adventure", return_value=FAKE_ADVENTURE
+    ):
+        at = AppTest.from_file(APP_PATH)
+        at.run()
+        at.text_area[0].set_value("Um sino amaldiçoado.")
+        at.button[0].click().run()
+
     assert not at.exception
     assert len(at.warning) == 0
     markdown_text = " ".join(md.value for md in at.markdown)
-    # O card de exemplo e a ideia informada aparecem no resultado.
     assert "rpg-card" in markdown_text
-    assert "Um vilarejo amaldiçoado" in markdown_text
+    assert "O Sino de Pedraluz" in markdown_text
+
+
+def test_config_error_shows_friendly_message(monkeypatch):
+    from src.config import ConfigError
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    with patch.object(
+        app.IAClient,
+        "generate_adventure",
+        side_effect=ConfigError("Chave ausente."),
+    ):
+        at = AppTest.from_file(APP_PATH)
+        at.run()
+        at.text_area[0].set_value("Qualquer ideia.")
+        at.button[0].click().run()
+
+    assert not at.exception
+    assert len(at.error) == 1
+    assert "Chave ausente." in at.error[0].value

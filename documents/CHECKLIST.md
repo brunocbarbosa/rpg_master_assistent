@@ -1,26 +1,26 @@
-# Checklist — Página principal (frontend) + fluxo Git + testes
+# Checklist — Integração com o Gemini (geração real)
 
-## Parte C — Fluxo de Git
-- [x] Criar branch `development` a partir da `main`
-- [x] Criar `documents/PLANO.md`
-- [x] Criar `documents/CHECKLIST.md`
+## Parte A — Backend
+- [x] `src/schemas/dnd5e.py` — modelos Pydantic
+- [x] `src/prompts.py` — SYSTEM_PROMPT + ADVENTURE_PROMPT_TEMPLATE
+- [x] `src/config.py` — ConfigError + modelo padrão gemini-2.5-flash
+- [x] `.env.example` — modelo padrão atualizado
+- [x] `src/ia_client.py` — generate_adventure real + IAClientError
 
-## Parte A — Frontend
-- [x] `.streamlit/config.toml` (tema base dark)
-- [x] `static/style.css` (tema dark fantasy customizado)
-- [x] `app.py` reescrito (load_css, constantes, hero, formulário, card de exemplo)
+## Parte B — Frontend
+- [x] `app.py` — get_client (cache), card real, spinner e tratamento de erro
 
-## Parte B — Testes automatizados
-- [x] `requirements-dev.txt` (pytest)
-- [x] `tests/__init__.py` + `tests/test_app.py`
-- [x] `pytest -q` passando (5 testes)
+## Parte C — Testes (sem rede)
+- [x] `tests/test_ia_client.py`
+- [x] `tests/test_config.py`
+- [x] `tests/test_prompts.py`
+- [x] `tests/test_app.py` atualizado
+- [x] `pytest -q` passando (16 testes)
+
+## Parte D — Docs e Git
+- [x] Substituir `documents/PLANO.md` e `documents/CHECKLIST.md`
+- [ ] Commit + `git push origin development` (atualiza PR #1)
 
 ## Verificação
-- [ ] Revisão visual do app (`streamlit run app.py`)
-
-## Fechamento
-- [x] `git push -u origin development`
-- [~] Branch protection na `main` — **adiada por decisão**: repo privado no plano
-      free não suporta (exige GitHub Pro ou repo público). Por ora vale só a
-      convenção de fluxo (trabalhar na `development`, levar à `main` via PR).
-- [x] Abrir PR `development → main` (#1)
+- [ ] Ponta a ponta: `streamlit run app.py` gera aventura real pelo Gemini
+- [ ] Erro tratado sem a chave (`st.error`)

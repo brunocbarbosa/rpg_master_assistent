@@ -11,6 +11,12 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+
+
+class ConfigError(RuntimeError):
+    """Erro de configuração (ex.: variável de ambiente obrigatória ausente)."""
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -23,12 +29,19 @@ class Settings:
 def load_settings() -> Settings:
     """Carrega as variáveis do `.env` e retorna um objeto ``Settings``.
 
-    TODO (Fase 1 funcional): validar a presença de ``GEMINI_API_KEY`` e
-    levantar um erro claro quando ausente, antes de qualquer chamada à IA.
+    Raises:
+        ConfigError: se ``GEMINI_API_KEY`` não estiver definida.
     """
     load_dotenv()
 
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise ConfigError(
+            "GEMINI_API_KEY não encontrada. Copie .env.example para .env e "
+            "preencha a sua chave da API do Google Gemini."
+        )
+
     return Settings(
-        gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-        gemini_model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+        gemini_api_key=api_key,
+        gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
     )
