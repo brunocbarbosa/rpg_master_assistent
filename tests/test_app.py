@@ -90,11 +90,35 @@ def test_valid_idea_renders_generated_card(monkeypatch):
         at.text_area[0].set_value("Um sino amaldiçoado.")
         at.button[0].click().run()
 
-    assert not at.exception
-    assert len(at.warning) == 0
-    markdown_text = " ".join(md.value for md in at.markdown)
-    assert "rpg-card" in markdown_text
-    assert "O Sino de Pedraluz" in markdown_text
+        assert not at.exception
+        assert len(at.warning) == 0
+        markdown_text = " ".join(md.value for md in at.markdown)
+        assert "rpg-card" in markdown_text
+        assert "O Sino de Pedraluz" in markdown_text
+        # A aventura fica no session_state para sobreviver ao rerun do download.
+        assert at.session_state["adventure"]["title"] == "O Sino de Pedraluz"
+
+        # Rerun sem submeter (simula o clique no download): o card persiste.
+        at.run()
+        assert "O Sino de Pedraluz" in " ".join(md.value for md in at.markdown)
+
+
+def test_error_clears_previous_adventure(monkeypatch):
+    from src.ia_client import IAClientError
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    at = AppTest.from_file(APP_PATH)
+    at.session_state["adventure"] = FAKE_ADVENTURE
+    at.session_state["params"] = ("Sombrio", "1–4", "One-shot")
+    with patch.object(
+        app.IAClient, "generate_adventure", side_effect=IAClientError("Falhou.")
+    ):
+        at.run()
+        at.text_area[0].set_value("Nova ideia.")
+        at.button[0].click().run()
+
+    assert len(at.error) == 1
+    assert "adventure" not in at.session_state
 
 
 def test_config_error_shows_friendly_message(monkeypatch):

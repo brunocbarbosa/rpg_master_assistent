@@ -1,41 +1,34 @@
-# Plano — Integração com o Gemini (geração real de aventuras)
+# Plano — Botão "Baixar em PDF" da aventura gerada
 
 ## Contexto
 
-A etapa anterior entregou o frontend (página dark fantasy + testes), mas a
-geração via IA era um **mock**. Esta etapa torna a geração **real**: ao submeter
-o formulário, o app chama o **Google Gemini** e exibe uma aventura única (Funil
-Narrativo + 3 atos) estruturada via JSON Schema (modelos Pydantic).
+Após gerar uma aventura, o app mostrava só o card HTML, sem exportação. Esta etapa
+adiciona um **botão para baixar o resultado em PDF** (tema *dark fantasy*),
+exibido logo abaixo do card.
 
-## Parte A — Backend (camada de IA)
-- `src/schemas/dnd5e.py` — modelos Pydantic (`Adventure`, `NarrativeFunnel`,
-  `Antagonist`, `Location`, `NPC`, `ThreeActStructure`) usados como
-  `response_schema`.
-- `src/prompts.py` — `SYSTEM_PROMPT` (persona mestre D&D 5e, pt-BR) e
-  `ADVENTURE_PROMPT_TEMPLATE` com `{idea}/{tom}/{nivel}/{duracao}`.
-- `src/config.py` — `load_settings()` levanta `ConfigError` sem a chave; modelo
-  padrão `gemini-2.5-flash`.
-- `src/ia_client.py` — `IAClient.generate_adventure(idea, tom, nivel, duracao)`
-  chama o Gemini com saída JSON estruturada; erros viram `IAClientError`.
+Pontos técnicos:
+- **Persistência:** `st.download_button` dispara rerun; a aventura passou a ser
+  guardada em `st.session_state` para o resultado não sumir ao baixar.
+- **Unicode pt-BR:** PDF usa `fpdf2` + fonte **DejaVu** empacotada em
+  `static/fonts/` (acentos e travessões corretos).
 
-## Parte B — Frontend (`app.py`)
-- `get_client()` em `@st.cache_resource`.
-- `_adventure_card_html(...)` renderiza o dict real (título, Gancho, Antagonista
-  + Doom Clock, Locais-chave, NPCs, 3 atos), com escape de HTML.
-- Submit: `st.spinner` durante a geração; `ConfigError`/`IAClientError` → `st.error`.
+## Mudanças
+- `requirements.txt` — adiciona `fpdf2`.
+- `static/fonts/DejaVuSans.ttf` e `DejaVuSans-Bold.ttf` — fontes Unicode.
+- `src/pdf.py` — `build_adventure_pdf(adventure, tom, nivel, duracao) -> bytes`
+  (fundo escuro, título dourado, Doom Clock em roxo) e `pdf_filename(title)`.
+- `app.py` — gera/persiste a aventura em `session_state`; `_render_result`
+  renderiza o card + `st.download_button`; em erro limpa o estado.
 
-## Parte C — Testes (sem rede)
-- `tests/test_ia_client.py`, `tests/test_config.py`, `tests/test_prompts.py` e
-  `tests/test_app.py` (atualizado). Gemini sempre mockado.
-
-## Parte D — Docs e Git
-- Substituir `documents/PLANO.md` e `documents/CHECKLIST.md`.
-- Continuar na `development`; tudo no mesmo **PR #1**.
+## Testes (sem rede)
+- `tests/test_pdf.py` — bytes `%PDF`, travessões/acentos, múltiplas páginas, slug.
+- `tests/test_app.py` — `session_state` após geração, persistência no rerun, erro
+  limpa o estado.
 
 ## Fora de escopo
-- Multi-sistema / Cyberpunk RED (Fase 2). Só D&D 5e.
+- Multi-sistema (Fase 2). Outros formatos de exportação.
 
 ## Verificação
 1. `pytest -q` → verde (sem rede).
-2. `streamlit run app.py` com chave real → aventura gerada pelo Gemini no card.
-3. Sem `GEMINI_API_KEY` → `st.error` claro em vez de quebrar.
+2. App: gerar aventura → card + botão "Baixar em PDF"; baixar mantém o resultado.
+3. PDF: tema escuro, título dourado, acentos/travessões corretos.

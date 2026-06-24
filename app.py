@@ -18,6 +18,7 @@ import streamlit as st
 
 from src.config import ConfigError, load_settings
 from src.ia_client import IAClient, IAClientError
+from src.pdf import build_adventure_pdf, pdf_filename
 
 BASE_DIR = Path(__file__).resolve().parent
 CSS_PATH = BASE_DIR / "static" / "style.css"
@@ -149,27 +150,54 @@ def main() -> None:
 
         submitted = st.form_submit_button("⚔️ Gerar Aventura", type="primary")
 
-    if not submitted:
-        return
+    if submitted:
+        if not idea.strip():
+            st.warning("Descreva uma ideia central antes de gerar a aventura.")
+        else:
+            _handle_generation(idea.strip(), tom, nivel, duracao)
 
-    if not idea.strip():
-        st.warning("Descreva uma ideia central antes de gerar a aventura.")
-        return
+    # Exibido a partir do session_state para sobreviver ao rerun do download.
+    if "adventure" in st.session_state:
+        _render_result(
+            st.session_state["adventure"], st.session_state["params"]
+        )
 
+
+def _handle_generation(idea: str, tom: str, nivel: str, duracao: str) -> None:
+    """Gera a aventura e guarda no session_state; em erro, mostra e limpa o estado."""
     try:
         client = get_client()
         with st.spinner("Convocando o oráculo... a aventura está sendo forjada."):
-            adventure = client.generate_adventure(idea.strip(), tom, nivel, duracao)
-    except ConfigError as exc:
-        st.error(str(exc))
-        return
-    except IAClientError as exc:
+            adventure = client.generate_adventure(idea, tom, nivel, duracao)
+    except (ConfigError, IAClientError) as exc:
+        st.session_state.pop("adventure", None)
+        st.session_state.pop("params", None)
         st.error(str(exc))
         return
 
+    st.session_state["adventure"] = adventure
+    st.session_state["params"] = (tom, nivel, duracao)
+
+
+def _render_result(adventure: dict, params: tuple[str, str, str]) -> None:
+    """Renderiza o card e o botão de download em PDF."""
+    tom, nivel, duracao = params
     st.markdown(
         _adventure_card_html(adventure, tom, nivel, duracao),
         unsafe_allow_html=True,
+    )
+
+    try:
+        pdf_bytes = build_adventure_pdf(adventure, tom, nivel, duracao)
+    except Exception:  # noqa: BLE001 — o PDF nunca deve esconder a aventura
+        st.warning("Não foi possível gerar o PDF desta aventura.")
+        return
+
+    st.download_button(
+        "📜 Baixar em PDF",
+        data=pdf_bytes,
+        file_name=pdf_filename(adventure.get("title", "aventura")),
+        mime="application/pdf",
     )
 
 

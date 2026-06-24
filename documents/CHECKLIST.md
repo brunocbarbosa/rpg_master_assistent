@@ -1,28 +1,21 @@
-# Checklist — Integração com o Gemini (geração real)
+# Checklist — Botão "Baixar em PDF" da aventura
 
-## Parte A — Backend
-- [x] `src/schemas/dnd5e.py` — modelos Pydantic
-- [x] `src/prompts.py` — SYSTEM_PROMPT + ADVENTURE_PROMPT_TEMPLATE
-- [x] `src/config.py` — ConfigError + modelo padrão gemini-2.5-flash
-- [x] `.env.example` — modelo padrão atualizado
-- [x] `src/ia_client.py` — generate_adventure real + IAClientError
-- [x] `src/ia_client.py` — retry/backoff para erros transitórios (503) + msg precisa
+## Implementação
+- [x] `requirements.txt` — `fpdf2`
+- [x] `static/fonts/` — DejaVuSans regular + bold empacotadas
+- [x] `src/pdf.py` — `build_adventure_pdf` + `pdf_filename` (tema dark fantasy)
+- [x] `app.py` — persistência em `session_state` + `st.download_button`
 
-## Parte B — Frontend
-- [x] `app.py` — get_client (cache), card real, spinner e tratamento de erro
-
-## Parte C — Testes (sem rede)
-- [x] `tests/test_ia_client.py` (inclui retry)
-- [x] `tests/test_config.py`
-- [x] `tests/test_prompts.py`
-- [x] `tests/test_app.py` atualizado
-- [x] `pytest -q` passando (18 testes)
-
-## Parte D — Docs e Git
-- [x] Substituir `documents/PLANO.md` e `documents/CHECKLIST.md`
-- [x] Commit + `git push origin development` (atualiza PR #1)
+## Testes (sem rede)
+- [x] `tests/test_pdf.py`
+- [x] `tests/test_app.py` atualizado (session_state, persistência, erro)
+- [x] `pytest -q` passando (23 testes)
 
 ## Verificação
-- [x] Ponta a ponta: aventura real gerada pelo Gemini renderizada no card
-- [x] Erro transitório (503) tratado com mensagem clara (`st.error`)
-- [x] Modelo do `.env` corrigido (gemini-1.5-flash → gemini-2.5-flash)
+- [x] PDF renderizado (tema escuro, dourado/roxo, acentos e travessões ok)
+- [x] Botão "Baixar em PDF" aparece abaixo do card (validado no app)
+- [ ] Geração ponta a ponta no app real bloqueada por pico de demanda do Gemini
+      (503) no momento; o caminho do botão foi validado via preview sem IA
+
+## Git
+- [ ] Commit / push / PR — **somente quando o usuário pedir**
