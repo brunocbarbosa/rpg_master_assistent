@@ -20,6 +20,7 @@
 
 ## Fechamento
 - [x] `git push -u origin development`
-- [ ] Branch protection na `main` (PR obrigatório) — **bloqueado**: repo privado
-      exige GitHub Pro ou repo público. Aguardando decisão do usuário.
+- [~] Branch protection na `main` — **adiada por decisão**: repo privado no plano
+      free não suporta (exige GitHub Pro ou repo público). Por ora vale só a
+      convenção de fluxo (trabalhar na `development`, levar à `main` via PR).
 - [x] Abrir PR `development → main` (#1)
