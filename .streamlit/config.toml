@@ -1,0 +1,10 @@
+# Tema base do Streamlit — dark fantasy.
+# Garante que os widgets nativos saiam coerentes com o tema antes mesmo do
+# CSS customizado de static/style.css.
+[theme]
+base = "dark"
+primaryColor = "#d4af37"               # dourado/âmbar (botões, foco)
+backgroundColor = "#16120e"            # fundo quase-preto quente
+secondaryBackgroundColor = "#221b14"   # superfícies/cards
+textColor = "#e8e0d4"
+font = "serif"

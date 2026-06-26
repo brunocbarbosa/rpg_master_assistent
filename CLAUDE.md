@@ -21,9 +21,10 @@ the Game Master.
 
 - Python 3.10+
 - Streamlit (web interface — `app.py`)
-- Google Gemini via `google-genai` (`from google import genai`) — AI engine
-- `python-dotenv` (secrets / environment variables)
-- Native `json` / JSON Schemas to structure the AI responses
+- Mistral served locally by Ollama via the `ollama` Python library — AI engine
+  (no API key; structured output via the `format` JSON Schema parameter)
+- `python-dotenv` (environment variables)
+- Pydantic models (`src/schemas/`) whose JSON Schema structures the AI responses
 
 ## Commands
 
@@ -32,8 +33,11 @@ the Game Master.
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# Configuration (fill in GEMINI_API_KEY)
+# Configuration (set OLLAMA_HOST / OLLAMA_MODEL if needed — no API key required)
 cp .env.example .env
+
+# Pull the model on the Ollama host
+ollama pull mistral
 
 # Run the application
 streamlit run app.py
@@ -44,13 +48,14 @@ streamlit run app.py
 ## Architecture
 
 Intended flow: `app.py` (Streamlit) collects the GM's idea → calls
-`src/ia_client.py` → which builds the prompt with `src/prompts.py` and asks Gemini
-for a response in the format of `src/schemas/dnd5e.py` → the structured result is
-displayed.
+`src/ia_client.py` → which builds the prompt with `src/prompts.py` and asks the
+local Mistral (via Ollama) for a response in the format of `src/schemas/dnd5e.py`
+→ the structured result is displayed.
 
 - `app.py` — Streamlit entrypoint; UI and call orchestration.
 - `src/config.py` — `load_settings()` reads `.env` and exposes `Settings`
-  (API key and Gemini model).
+  (`ollama_host` and `ollama_model`); auto-detects the Ollama host on WSL
+  (`/etc/resolv.conf`) when `OLLAMA_HOST` is unset.
 - `src/ia_client.py` — the **only** layer that knows the AI provider. Class
   `IAClient` with `generate_adventure(idea) -> dict`. The rest of the app talks
   only to this interface (makes it easy to swap/abstract the provider in Phase 2).

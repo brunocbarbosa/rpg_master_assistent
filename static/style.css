@@ -1,0 +1,169 @@
+/* ==========================================================================
+   RPG Master Assistant — tema "dark fantasy".
+   CSS customizado injetado em app.py via load_css(). Cobre o acabamento que o
+   tema base do Streamlit (.streamlit/config.toml) não alcança.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+    --rpg-bg: #16120e;
+    --rpg-surface: #221b14;
+    --rpg-surface-2: #2c2319;
+    --rpg-gold: #d4af37;
+    --rpg-gold-soft: #e0c878;
+    --rpg-purple: #7c5cbf;
+    --rpg-text: #e8e0d4;
+    --rpg-muted: #a89c8a;
+    --rpg-border: rgba(212, 175, 55, 0.28);
+}
+
+/* Fundo geral e fonte de corpo */
+.stApp {
+    background:
+        radial-gradient(1200px 600px at 50% -10%, rgba(124, 92, 191, 0.10), transparent 60%),
+        radial-gradient(900px 500px at 50% 110%, rgba(212, 175, 55, 0.06), transparent 60%),
+        var(--rpg-bg);
+    font-family: 'EB Garamond', Georgia, serif;
+    color: var(--rpg-text);
+}
+
+/* Esconder cromos do Streamlit para um look mais "app" */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header[data-testid="stHeader"] { background: transparent; }
+
+/* --------------------------------- Hero --------------------------------- */
+.rpg-hero {
+    text-align: center;
+    padding: 1.6rem 0 0.4rem;
+}
+.rpg-hero h1 {
+    font-family: 'Cinzel', serif;
+    font-weight: 900;
+    font-size: 2.7rem;
+    letter-spacing: 0.04em;
+    margin: 0;
+    color: var(--rpg-gold);
+    text-shadow: 0 0 18px rgba(212, 175, 55, 0.35), 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.rpg-hero p {
+    color: var(--rpg-muted);
+    font-size: 1.08rem;
+    margin: 0.5rem auto 0;
+    max-width: 34rem;
+    font-style: italic;
+}
+/* Divisória ornamental */
+.rpg-divider {
+    width: 60%;
+    margin: 1.1rem auto 1.6rem;
+    height: 1px;
+    border: none;
+    background: linear-gradient(90deg, transparent, var(--rpg-gold), transparent);
+    position: relative;
+}
+.rpg-divider::after {
+    content: "✦";
+    position: absolute;
+    top: -0.72rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--rpg-gold);
+    background: var(--rpg-bg);
+    padding: 0 0.6rem;
+    font-size: 0.8rem;
+}
+
+/* ------------------------------ Formulário ------------------------------ */
+/* Bloco do form com aparência de "pergaminho escuro" */
+div[data-testid="stForm"] {
+    background: linear-gradient(180deg, var(--rpg-surface-2), var(--rpg-surface));
+    border: 1px solid var(--rpg-border);
+    border-radius: 14px;
+    padding: 1.4rem 1.5rem 1.2rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* Rótulos dos campos */
+.stTextArea label, .stSelectbox label {
+    color: var(--rpg-gold-soft) !important;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* Caixa de texto e selects */
+.stTextArea textarea,
+.stSelectbox div[data-baseweb="select"] > div {
+    background: var(--rpg-bg) !important;
+    border: 1px solid var(--rpg-border) !important;
+    border-radius: 10px !important;
+    color: var(--rpg-text) !important;
+}
+.stTextArea textarea:focus {
+    border-color: var(--rpg-gold) !important;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25) !important;
+}
+.stTextArea textarea::placeholder { color: rgba(168, 156, 138, 0.6); }
+
+/* Botão "Gerar Aventura" */
+.stFormSubmitButton button,
+.stButton button {
+    width: 100%;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #2a200c;
+    background: linear-gradient(180deg, var(--rpg-gold-soft), var(--rpg-gold));
+    border: 1px solid #b8961f;
+    border-radius: 11px;
+    padding: 0.6rem 1rem;
+    transition: transform 0.08s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    box-shadow: 0 6px 18px rgba(212, 175, 55, 0.25);
+}
+.stFormSubmitButton button:hover,
+.stButton button:hover {
+    filter: brightness(1.07);
+    box-shadow: 0 0 22px rgba(212, 175, 55, 0.55);
+    transform: translateY(-1px);
+}
+
+/* ---------------------------- Card de resultado ------------------------- */
+.rpg-card {
+    background: linear-gradient(180deg, var(--rpg-surface-2), var(--rpg-surface));
+    border: 1px solid var(--rpg-border);
+    border-left: 4px solid var(--rpg-gold);
+    border-radius: 12px;
+    padding: 1.3rem 1.5rem;
+    margin-top: 1.2rem;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+.rpg-card h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--rpg-gold);
+    font-size: 1.5rem;
+    margin: 0 0 0.2rem;
+}
+.rpg-card h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--rpg-gold-soft);
+    font-size: 1.05rem;
+    letter-spacing: 0.03em;
+    margin: 1.1rem 0 0.3rem;
+}
+.rpg-card p, .rpg-card li { color: var(--rpg-text); line-height: 1.55; }
+.rpg-card .rpg-doom {
+    color: var(--rpg-purple);
+    font-weight: 600;
+}
+.rpg-tag {
+    display: inline-block;
+    font-family: 'EB Garamond', serif;
+    font-size: 0.82rem;
+    color: var(--rpg-gold-soft);
+    border: 1px solid var(--rpg-border);
+    border-radius: 999px;
+    padding: 0.1rem 0.7rem;
+    margin: 0.1rem 0.3rem 0.1rem 0;
+    background: rgba(212, 175, 55, 0.06);
+}
