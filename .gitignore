@@ -23,6 +23,12 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
+# Dados persistidos / fontes
+# data/ = indices do ChromaDB (docker compose)
+# documents/regras/ = PDFs de regras (fonte do RAG) — nao versionar binarios
+data/
+documents/regras/
+
 # Editores / SO
 .vscode/
 .idea/

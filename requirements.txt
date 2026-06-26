@@ -2,3 +2,10 @@ streamlit
 ollama
 python-dotenv
 fpdf2
+
+# RAG — base de conhecimento das regras
+# chromadb fixado: a versao do cliente deve casar com a tag da imagem no
+# docker-compose.yml (Chroma exige compatibilidade client/server).
+chromadb==1.5.9
+PyPDF2
+langchain-text-splitters

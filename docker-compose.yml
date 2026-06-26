@@ -1,0 +1,26 @@
+# Servidor ChromaDB — base vetorial onde as regras dos sistemas de RPG ficam
+# guardadas (embeddings) para o RAG.
+#
+# IMPORTANTE: a tag da imagem deve casar com a versao do cliente `chromadb` no
+# requirements.txt (o Chroma exige compatibilidade client/server). Hoje: 1.5.9.
+#
+# Uso:
+#   docker compose up -d        # sobe o servidor (porta 8000)
+#   curl http://localhost:8000/api/v2/heartbeat
+#   docker compose down         # encerra (os dados em ./data/chroma persistem)
+
+services:
+  chroma:
+    image: chromadb/chroma:1.5.9
+    container_name: rpg_master_chroma
+    restart: unless-stopped
+    # Porta publicada no host = CHROMA_PORT (default 8000). Sobreponha em .env se
+    # a 8000 ja estiver em uso (ex.: portainer). O cliente usa a mesma variavel.
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - ./data/chroma:/data

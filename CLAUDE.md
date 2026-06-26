@@ -25,6 +25,11 @@ the Game Master.
   (no API key; structured output via the `format` JSON Schema parameter)
 - `python-dotenv` (environment variables)
 - Pydantic models (`src/schemas/`) whose JSON Schema structures the AI responses
+- **RAG (knowledge base):** ChromaDB server via Docker Compose
+  (`docker-compose.yml`) stores the rules as embeddings; `PyPDF2` extracts the
+  rules PDF and `langchain-text-splitters` chunks it. Embeddings come from Ollama
+  (`nomic-embed-text`). Ingestion/query are **not** implemented yet — see
+  `documents/CHECKLIST_RAG.md`.
 
 ## Commands
 
@@ -36,8 +41,12 @@ pip install -r requirements.txt
 # Configuration (set OLLAMA_HOST / OLLAMA_MODEL if needed — no API key required)
 cp .env.example .env
 
-# Pull the model on the Ollama host
+# Pull the models on the Ollama host (generation + embeddings)
 ollama pull mistral
+ollama pull nomic-embed-text
+
+# Start the ChromaDB server (RAG knowledge base)
+docker compose up -d
 
 # Run the application
 streamlit run app.py
@@ -54,8 +63,10 @@ local Mistral (via Ollama) for a response in the format of `src/schemas/dnd5e.py
 
 - `app.py` — Streamlit entrypoint; UI and call orchestration.
 - `src/config.py` — `load_settings()` reads `.env` and exposes `Settings`
-  (`ollama_host` and `ollama_model`); auto-detects the Ollama host on WSL
-  (`/etc/resolv.conf`) when `OLLAMA_HOST` is unset.
+  (`ollama_host`, `ollama_model`, `ollama_embed_model`, `chroma_host`,
+  `chroma_port`); auto-detects the Ollama host on WSL (gateway from
+  `/proc/net/route`) when `OLLAMA_HOST` is unset. ChromaDB runs as a local Docker
+  container, so `chroma_host` defaults to `localhost`.
 - `src/ia_client.py` — the **only** layer that knows the AI provider. Class
   `IAClient` with `generate_adventure(idea) -> dict`. The rest of the app talks
   only to this interface (makes it easy to swap/abstract the provider in Phase 2).

@@ -18,6 +18,13 @@ DEFAULT_OLLAMA_MODEL = "mistral"
 DEFAULT_OLLAMA_PORT = 11434
 _PROC_NET_ROUTE = "/proc/net/route"
 
+# RAG / ChromaDB. O Chroma roda como container local (docker compose), por isso o
+# host padrao e `localhost` — diferente do Ollama, que pode apontar para o host
+# Windows via gateway no WSL.
+DEFAULT_CHROMA_HOST = "localhost"
+DEFAULT_CHROMA_PORT = 8000
+DEFAULT_OLLAMA_EMBED_MODEL = "nomic-embed-text"
+
 
 class ConfigError(RuntimeError):
     """Erro de configuração (ex.: variável de ambiente obrigatória ausente)."""
@@ -29,6 +36,9 @@ class Settings:
 
     ollama_host: str
     ollama_model: str
+    ollama_embed_model: str = DEFAULT_OLLAMA_EMBED_MODEL
+    chroma_host: str = DEFAULT_CHROMA_HOST
+    chroma_port: int = DEFAULT_CHROMA_PORT
 
 
 def _wsl_default_gateway() -> str | None:
@@ -71,7 +81,20 @@ def load_settings() -> Settings:
 
     host = os.getenv("OLLAMA_HOST", "").strip() or _default_ollama_host()
 
+    chroma_port_raw = os.getenv("CHROMA_PORT", "").strip()
+    try:
+        chroma_port = int(chroma_port_raw) if chroma_port_raw else DEFAULT_CHROMA_PORT
+    except ValueError as exc:
+        raise ConfigError(
+            f"CHROMA_PORT invalido: {chroma_port_raw!r} (deve ser um inteiro)."
+        ) from exc
+
     return Settings(
         ollama_host=host,
         ollama_model=os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL),
+        ollama_embed_model=os.getenv(
+            "OLLAMA_EMBED_MODEL", DEFAULT_OLLAMA_EMBED_MODEL
+        ),
+        chroma_host=os.getenv("CHROMA_HOST", "").strip() or DEFAULT_CHROMA_HOST,
+        chroma_port=chroma_port,
     )
