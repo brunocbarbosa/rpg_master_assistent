@@ -25,9 +25,9 @@ dist/
 
 # Dados persistidos / fontes
 # data/ = indices do ChromaDB (docker compose)
-# documents/regras/ = PDFs de regras (fonte do RAG) — nao versionar binarios
+# documents/books/ = PDFs de regras (fonte do RAG) — nao versionar binarios
 data/
-documents/regras/
+documents/books/
 
 # Editores / SO
 .vscode/
@@ -36,3 +36,6 @@ documents/regras/
 
 # Claude Code (config/skills locais)
 .claude/
+
+# Scratch do fluxo de execução por subagentes (SDD)
+.superpowers/
