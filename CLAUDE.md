@@ -27,9 +27,11 @@ the Game Master.
 - Pydantic models (`src/schemas/`) whose JSON Schema structures the AI responses
 - **RAG (knowledge base):** ChromaDB server via Docker Compose
   (`docker-compose.yml`) stores the rules as embeddings; `PyPDF2` extracts the
-  rules PDF and `langchain-text-splitters` chunks it. Embeddings come from Ollama
-  (`nomic-embed-text`). Ingestion/query are **not** implemented yet — see
-  `documents/CHECKLIST_RAG.md`.
+  rules PDFs and `langchain-text-splitters` chunks them
+  (`chunk_size=1000`, `chunk_overlap=200`). Embeddings come from Ollama
+  (`nomic-embed-text`). **Ingestion** (`python -m src.rag.ingest`) and **query**
+  (RAG on generation, `src/rag/retrieve.py`) are implemented — see
+  `documents/plans/CHECKLIST_RAG.md`.
 
 ## Commands
 
@@ -48,11 +50,16 @@ ollama pull nomic-embed-text
 # Start the ChromaDB server (RAG knowledge base)
 docker compose up -d
 
+# Ingest the D&D 5e rule PDFs into ChromaDB (collection `dnd_5e_knowledge`)
+# PDFs live in documents/books/dnd_5e/ (not versioned). --rebuild wipes first.
+python -m src.rag.ingest
+
 # Run the application
 streamlit run app.py
-```
 
-> There is no test suite or linter configured yet.
+# Tests
+pytest -q
+```
 
 ## Architecture
 
@@ -73,6 +80,13 @@ local Mistral (via Ollama) for a response in the format of `src/schemas/dnd5e.py
 - `src/prompts.py` — `SYSTEM_PROMPT` (persona, pt-BR output) and
   `ADVENTURE_PROMPT_TEMPLATE`; comments map the Narrative Funnel and the three acts.
 - `src/schemas/` — per-system output structures; `dnd5e.py` holds `ADVENTURE_SCHEMA`.
+- `src/rag/` — RAG knowledge base. `embeddings.py` (`OllamaEmbeddingFunction`,
+  ChromaDB ↔ Ollama) and `ingest.py` (extract → chunk → embed → upsert into the
+  `dnd_5e_knowledge` collection). Source PDFs in `documents/books/<rpg_system>/`;
+  each chunk is tagged with `pdf_name`, `rpg_system`, `book_category` metadata so
+  systems/books stay isolated and filterable (groundwork for Phase 2 multi-system).
+  `retrieve.py` (`Retriever`) consulta a coleção e devolve trechos para o
+  `IAClient` injetar no prompt (best-effort: falha de RAG → gera sem contexto).
 
 ## Conventions
 

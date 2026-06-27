@@ -50,7 +50,7 @@ casamento de versão com a imagem):
 
 ### 4. `.gitignore`
 Adicionar `data/` (dados persistidos do Chroma) e a pasta de PDFs de origem
-(`documents/regras/`), para não versionar binários/índices pesados.
+(`documents/books/`), para não versionar binários/índices pesados.
 Atenção: comentários em `.gitignore` precisam ficar em **linha própria**
 (o `#` inline não funciona).
 
@@ -77,6 +77,28 @@ Atualizar `.env.example` documentando `CHROMA_HOST`, `CHROMA_PORT` e
 - Criar `documents/CHECKLIST_RAG.md` com a checklist desta fase (infra → ingestão
   → consulta), marcando o que for concluído — conforme o fluxo de checklist do
   projeto.
+
+## Fase 2 — Ingestão (decisões confirmadas)
+
+Os PDFs de regras já chegaram. Decisões fechadas para a ingestão:
+
+- **Pasta de origem:** `documents/books/dnd_5e/` (substitui o antigo
+  `documents/regras/`). Estrutura por sistema (`books/<rpg_system>/`) para
+  comportar outros sistemas no futuro.
+- **PDFs (D&D 5e):**
+  - `dnd_5e_master_guide.pdf` → `book_category = master_guide`
+  - `dnd_5e_monsters_manual.pdf` → `book_category = monsters_manual`
+  - `dnd_5e_player_book.pdf` → `book_category = player_book`
+- **Coleção única:** `dnd_5e_knowledge` — guarda os 3 livros de D&D 5e.
+- **Chunking** (`RecursiveCharacterTextSplitter`):
+  `chunk_size = 1000`, `chunk_overlap = 200`.
+- **Metadados por chunk** (chave para isolar sistemas/livros e filtrar na
+  consulta):
+  - `pdf_name` — nome do arquivo de origem (ex.: `dnd_5e_master_guide.pdf`)
+  - `rpg_system` — sistema do RPG (`dnd_5e`)
+  - `book_category` — `master_guide` | `monsters_manual` | `player_book`
+- **Arquivos `.pdf:Zone.Identifier`** (ADS do Windows) são ignorados — só
+  `*.pdf` é processado.
 
 ## Embeddings (definido agora, implementado na ingestão)
 Usar `nomic-embed-text` no Ollama. Pré-requisito operacional:
