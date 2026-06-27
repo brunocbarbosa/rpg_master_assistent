@@ -14,7 +14,12 @@ import httpx
 import ollama
 
 from src.config import Settings
-from src.prompts import ADVENTURE_PROMPT_TEMPLATE, SYSTEM_PROMPT
+from src.prompts import (
+    ADVENTURE_PROMPT_TEMPLATE,
+    SYSTEM_PROMPT,
+    format_rules_context,
+)
+from src.rag.retrieve import Retriever
 from src.schemas.dnd5e import Adventure
 
 # Tentativas extras quando o servidor responde com erro transitório
@@ -46,9 +51,10 @@ class IAClientError(RuntimeError):
 class IAClient:
     """Encapsula a comunicação com o modelo Mistral servido pelo Ollama."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, retriever: Retriever | None = None) -> None:
         self._settings = settings
         self._client = ollama.Client(host=settings.ollama_host, timeout=_TIMEOUT)
+        self._retriever = retriever or Retriever(settings)
 
     def generate_adventure(
         self, idea: str, tom: str, nivel: str, duracao: str
@@ -68,8 +74,11 @@ class IAClient:
         Raises:
             IAClientError: se a chamada ao Ollama ou o parse da resposta falhar.
         """
+        # RAG (best-effort): recupera regras relevantes e injeta como contexto.
+        query = f"{idea}\nTom: {tom}\nNível: {nivel}"
+        contexto = format_rules_context(self._retriever.retrieve(query))
         prompt = ADVENTURE_PROMPT_TEMPLATE.format(
-            idea=idea, tom=tom, nivel=nivel, duracao=duracao
+            idea=idea, tom=tom, nivel=nivel, duracao=duracao, contexto=contexto
         )
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},

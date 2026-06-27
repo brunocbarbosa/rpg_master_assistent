@@ -73,8 +73,23 @@ def _patch_client(monkeypatch, response):
     return fake
 
 
-def _make_client() -> IAClient:
-    return IAClient(Settings(ollama_host="http://x:11434", ollama_model="mistral"))
+class _FakeRetriever:
+    """Retriever fake: registra a query e devolve trechos fixos."""
+
+    def __init__(self, chunks=None):
+        self.chunks = chunks if chunks is not None else []
+        self.last_query = None
+
+    def retrieve(self, query, n_results=5):
+        self.last_query = query
+        return self.chunks
+
+
+def _make_client(retriever=None) -> IAClient:
+    return IAClient(
+        Settings(ollama_host="http://x:11434", ollama_model="mistral"),
+        retriever=retriever if retriever is not None else _FakeRetriever(),
+    )
 
 
 def test_generate_adventure_returns_dict(monkeypatch):
@@ -170,3 +185,39 @@ def test_persistent_transient_error_raises_overload_message(monkeypatch):
     with pytest.raises(IAClientError, match="sobrecarregado"):
         client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
     assert client_fake.calls == 3  # esgotou as tentativas
+
+
+def test_query_uses_idea_tom_and_nivel(monkeypatch):
+    content = _fake_adventure().model_dump_json()
+    _patch_client(monkeypatch, _FakeResponse(content))
+    retriever = _FakeRetriever()
+    client = _make_client(retriever)
+
+    client.generate_adventure("cidade flutuante", "Sombrio", "5–10", "One-shot")
+
+    assert "cidade flutuante" in retriever.last_query
+    assert "Sombrio" in retriever.last_query
+    assert "5–10" in retriever.last_query
+
+
+def test_context_injected_when_chunks(monkeypatch):
+    content = _fake_adventure().model_dump_json()
+    fake = _patch_client(monkeypatch, _FakeResponse(content))
+    client = _make_client(_FakeRetriever(chunks=["Regra do grimório"]))
+
+    client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
+
+    user_msg = {m["role"]: m["content"] for m in fake.last_kwargs["messages"]}["user"]
+    assert "Regra do grimório" in user_msg
+    assert "<regras>" in user_msg
+
+
+def test_no_context_block_when_no_chunks(monkeypatch):
+    content = _fake_adventure().model_dump_json()
+    fake = _patch_client(monkeypatch, _FakeResponse(content))
+    client = _make_client(_FakeRetriever(chunks=[]))
+
+    client.generate_adventure("ideia", "Sombrio", "1–4", "One-shot")
+
+    user_msg = {m["role"]: m["content"] for m in fake.last_kwargs["messages"]}["user"]
+    assert "<regras>" not in user_msg

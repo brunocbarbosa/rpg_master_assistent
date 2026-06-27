@@ -23,8 +23,9 @@ Princípios:
 """.strip()
 
 # Template do prompt do usuário — injeta a ideia central e os ajustes do Mestre.
+# `{contexto}` recebe (opcionalmente) o bloco de regras recuperado via RAG.
 ADVENTURE_PROMPT_TEMPLATE = """
-Crie uma aventura de D&D 5e com base nestes parâmetros:
+{contexto}Crie uma aventura de D&D 5e com base nestes parâmetros:
 
 - Ideia central: {idea}
 - Tom: {tom}
@@ -34,3 +35,20 @@ Crie uma aventura de D&D 5e com base nestes parâmetros:
 Gere a aventura seguindo o Funil Narrativo e a estrutura de 3 atos, calibrando a
 escala e a complexidade para o nível e a duração indicados.
 """.strip()
+
+
+def format_rules_context(chunks: list[str]) -> str:
+    """Formata os trechos de regras recuperados (RAG) em um bloco para o prompt.
+
+    Retorna ``""`` quando não há trechos — assim o bloco simplesmente desaparece
+    do prompt (degradação graciosa). Quando há, devolve um bloco terminado em
+    ``"\\n\\n"`` para separar do restante do template.
+    """
+    if not chunks:
+        return ""
+    regras = "\n---\n".join(chunk.strip() for chunk in chunks)
+    return (
+        "Use as REGRAS OFICIAIS de D&D 5e abaixo como REFERÊNCIA para manter "
+        "coerência mecânica (não as copie literalmente):\n"
+        f"<regras>\n{regras}\n</regras>\n\n"
+    )
